@@ -8,3 +8,4 @@ openai
 faker
 joblib
 matplotlib
+sqlite3 
