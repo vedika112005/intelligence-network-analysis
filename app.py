@@ -7,90 +7,130 @@ import streamlit.components.v1 as components
 from pyvis.network import Network
 from sklearn.ensemble import IsolationForest
 
+# --- IMPORT GRAPH RAG MODULE ---
+try:
+    from graph_rag import build_intelligence_briefing, simulate_llm_response
+except ImportError:
+    st.error("⚠️ 'graph_rag.py' not found. Please make sure the file is in the same directory.")
+    st.stop()
+
 # --- CONFIGURATION ---
-# This sets the path to the current folder, wherever the script is running
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-st.set_page_config(page_title="Intel Network Hunter", layout="wide")
+st.set_page_config(page_title="ShadowLink AI: Threat Hunter", layout="wide", page_icon="🕵️‍♂️")
 
 # --- LOAD RESOURCES ---
 @st.cache_data
 def load_data():
-    nodes = pd.read_csv(os.path.join(BASE_PATH, 'nodes.csv'))
-    edges = pd.read_csv(os.path.join(BASE_PATH, 'edges.csv'))
-    features = pd.read_csv(os.path.join(BASE_PATH, 'extracted_features.csv'))
+    nodes_path = os.path.join(BASE_PATH, 'nodes.csv')
+    edges_path = os.path.join(BASE_PATH, 'edges.csv')
+    features_path = os.path.join(BASE_PATH, 'extracted_features.csv')
     
-    # Try to load the model, but don't crash if it's missing (allows running on real data)
+    nodes = pd.read_csv(nodes_path)
+    edges = pd.read_csv(edges_path)
+    features = pd.read_csv(features_path)
+    
     model_path = os.path.join(BASE_PATH, 'covert_network_model.pkl')
     if os.path.exists(model_path):
-        model = joblib.load(model_path)
+        try:
+            model = joblib.load(model_path)
+        except:
+            model = None
     else:
         model = None
         
     return nodes, edges, features, model
 
 def build_graph(nodes, edges):
+    """Reconstructs the graph object for visualization"""
     G = nx.Graph()
     for _, row in nodes.iterrows():
-        # Handle cases where real data might miss columns
-        node_type = row['type'] if 'type' in row else 'Unknown'
-        risk = row['risk_label'] if 'risk_label' in row else 0
+        # Handle Attributes
+        role = row['role'] if 'role' in row else 'Unknown'
+        dept = row['department'] if 'department' in row else 'Unknown'
         
-        G.add_node(row['id'], label=str(row['name']), type=node_type, risk_label=risk, title=f"ID: {row['id']}")
+        # Tooltip title
+        title_html = f"ID: {row['id']}\nName: {row['name']}\nRole: {role}\nDept: {dept}"
+        
+        # FIX: Force Convert EVERYTHING to standard Python types
+        node_id = int(row['id'])
+        risk_val = int(row['risk_label']) if 'risk_label' in row else 0
+        
+        G.add_node(node_id, 
+                   label=str(node_id), 
+                   title=title_html,
+                   group=dept, 
+                   risk_label=risk_val)
     
     for _, row in edges.iterrows():
-        G.add_edge(row['source'], row['target'], weight=row['weight'])
+        # FIX: Force Convert EVERYTHING to standard Python types
+        source_id = int(row['source'])
+        target_id = int(row['target'])
+        weight_val = int(row['weight'])
+        
+        G.add_edge(source_id, target_id, weight=weight_val)
     return G
 
-# --- VISUALIZATION ENGINE ---
+# --- VISUALIZATION ENGINE (PyVis) ---
 def visualize_interactive(G, output_path="network.html"):
-    """
-    Creates an interactive HTML graph using PyVis.
-    """
-    net = Network(height="600px", width="100%", bgcolor="#222222", font_color="white")
-    
-    # Convert nx graph to pyvis
+    net = Network(height="700px", width="100%", bgcolor="#1e1e1e", font_color="white")
     net.from_nx(G)
     
-    # Color code nodes
+    # Custom Logic for ShadowLink Visualization
     for node in net.nodes:
-        # Get the original node data from NetworkX graph
-        try:
-            nx_node = G.nodes[node['id']]
-            if nx_node.get('risk_label', 0) == 1:
-                node['color'] = '#ff4d4d'  # Red for Threat
-                node['size'] = 25
+        node_id = node['id']
+        nx_node = G.nodes[node_id]
+        
+        # Highlight Bad Actors (Ground Truth) in Red
+        if nx_node.get('risk_label', 0) == 1:
+            node['color'] = '#ff4b4b' # Red
+            node['size'] = 20
+            node['shape'] = 'dot'
+        else:
+            # Color Civilians by Department
+            dept = nx_node.get('group', '')
+            if dept == 'HR':
+                node['color'] = '#4caf50' 
+            elif dept == 'IT':
+                node['color'] = '#2196f3'
+            elif dept == 'Shipping':
+                node['color'] = '#ff9800'
+            elif dept == 'Executive':
+                node['color'] = '#9c27b0'
             else:
-                node['color'] = '#00bfff'  # Blue for Civilian
-                node['size'] = 10
-        except:
-            node['color'] = '#00bfff'
+                node['color'] = '#9e9e9e' # Default Grey
+            
+            node['size'] = 8
 
-    # Physics Options
+    # Physics Options (Optimized for 1500 nodes)
     net.set_options("""
     var options = {
       "physics": {
         "forceAtlas2Based": {
-          "gravitationalConstant": -50,
-          "springLength": 100,
-          "springConstant": 0.08
+          "gravitationalConstant": -30,
+          "centralGravity": 0.005,
+          "springLength": 230,
+          "springConstant": 0.18
         },
-        "minVelocity": 0.75,
-        "solver": "forceAtlas2Based"
+        "maxVelocity": 146,
+        "solver": "forceAtlas2Based",
+        "timestep": 0.35,
+        "stabilization": { "enabled": true, "iterations": 200 }
       }
     }
     """)
     
-    # Save and return path
     path = os.path.join(BASE_PATH, output_path)
     net.save_graph(path)
     return path
 
 # --- UI LAYOUT ---
-st.title("🕵️ Intelligence Hunter: Advanced Network Analysis")
+st.title("🕵️‍♂️ ShadowLink AI")
+st.markdown("### Advanced Insider Threat Detection System")
 
 # Sidebar
 st.sidebar.header("Operations Center")
-view_mode = st.sidebar.radio("Select Module:", ["Dashboard", "Interactive Map", "Pathfinder"])
+view_mode = st.sidebar.radio("Select Module:", 
+    ["Dashboard Overview", "Interactive Map", "Graph RAG Dossier", "Pathfinder"])
 
 try:
     df_nodes, df_edges, df_features, model = load_data()
@@ -100,96 +140,127 @@ except Exception as e:
     st.error(f"System Offline: {e}")
     st.stop()
 
-# --- MODULE 1: DASHBOARD ---
-if view_mode == "Dashboard":
+# --- MODULE 1: DASHBOARD OVERVIEW ---
+if view_mode == "Dashboard Overview":
+    # Top Metrics
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Subjects", len(df_nodes))
+    col1.metric("Total Employees", len(df_nodes))
+    col2.metric("Confirmed Threats", len(df_nodes[df_nodes['risk_label']==1]))
+    col3.metric("Network Density", f"{nx.density(G):.5f}")
     
-    # Count threats if label exists, else 0
-    threat_count = len(df_nodes[df_nodes['risk_label']==1]) if 'risk_label' in df_nodes.columns else 0
-    col2.metric("Confirmed Threats", threat_count)
-    col3.metric("Network Density", f"{nx.density(G):.4f}")
-    
-    # Advanced Metric
     if len(G) > 0:
         assortativity = nx.degree_assortativity_coefficient(G)
         col4.metric("Homophily Score", f"{assortativity:.2f}")
-    
-    st.markdown("### 🚨 Threat Prediction Unit")
-    
-    # Choose Model Type
-    model_type = st.radio("AI Detection Mode:", ["Supervised (Pre-trained)", "Unsupervised (Anomaly Scan)"])
 
-    if st.button("Run AI Diagnostics"):
-        # Prepare input features (dropping non-numeric)
-        X_input = df_features.drop(columns=['id', 'name', 'country', 'type', 'risk_label'], errors='ignore')
-        
-        results = df_nodes.copy()
-        
-        if model_type == "Supervised (Pre-trained)":
-            if model:
-                # Use the loaded Random Forest
-                probs = model.predict_proba(X_input)[:, 1]
-                results['Risk_Score'] = probs
-            else:
-                st.error("No pre-trained model found. Please train the model or use Unsupervised mode.")
-                st.stop()
-                
-        elif model_type == "Unsupervised (Anomaly Scan)":
-            # Use Isolation Forest (No labels needed)
-            iso = IsolationForest(contamination=0.02, random_state=42)
-            iso.fit(X_input)
-            
-            # Decision function: lower = more anomalous. We invert it for a 0-1 score.
-            scores = -iso.decision_function(X_input)
-            min_s, max_s = scores.min(), scores.max()
-            results['Risk_Score'] = (scores - min_s) / (max_s - min_s)
+    st.divider()
 
-        # Filter High Risk
-        high_risk = results[results['Risk_Score'] > 0.65].sort_values('Risk_Score', ascending=False)
+    # ANOMALY DETECTION SECTION
+    st.subheader("🚨 Unsupervised Anomaly Detection")
+    st.write("Using **Isolation Forest** to detect statistical outliers in network topology.")
+    
+    if st.button("Run Anomaly Scan"):
+        # Explicitly select ONLY numeric feature columns
+        numeric_cols = ['degree_centrality', 'betweenness', 'closeness', 'eigenvector', 'clustering']
+        available_cols = [c for c in numeric_cols if c in df_features.columns]
+        X_input = df_features[available_cols]
         
-        st.warning(f"AI Detected {len(high_risk)} Anomalies in the network.")
+        # Run Isolation Forest
+        iso = IsolationForest(contamination=0.03, random_state=42)
+        iso.fit(X_input)
+        
+        # Get Scores
+        scores = -iso.decision_function(X_input)
+        df_nodes['Anomaly_Score'] = scores
+        
+        # Filter Top Anomalies
+        top_threats = df_nodes.sort_values('Anomaly_Score', ascending=False).head(20)
+        
+        st.warning(f"Scan Complete. Top {len(top_threats)} Anomalies Detected.")
+        
+        # Show Results with Department Info
         st.dataframe(
-            high_risk[['id', 'name', 'Risk_Score']].style.background_gradient(cmap='Reds'),
+            top_threats[['id', 'name', 'role', 'department', 'Anomaly_Score']].style.background_gradient(cmap='Reds'),
             use_container_width=True
         )
 
 # --- MODULE 2: INTERACTIVE MAP ---
 elif view_mode == "Interactive Map":
     st.subheader("🌍 Geospatial Link Analysis")
-    st.markdown("Use your mouse to drag nodes, zoom, and explore connections.")
+    st.caption("🔴 Red = Confirmed/Suspected Threat | 🔵 Blue/Green = Standard Employees")
     
-    # Generate the HTML file
-    html_path = visualize_interactive(G)
-    
-    # Load HTML into Streamlit
-    with open(html_path, 'r', encoding='utf-8') as f:
-        source_code = f.read()
-    components.html(source_code, height=650)
+    if st.button("Generate Map (May take a moment)"):
+        with st.spinner("Simulating Force-Directed Graph..."):
+            html_path = visualize_interactive(G)
+            
+            with open(html_path, 'r', encoding='utf-8') as f:
+                source_code = f.read()
+            components.html(source_code, height=750)
 
-# --- MODULE 3: PATHFINDER ---
+# --- MODULE 3: GRAPH RAG DOSSIER ---
+elif view_mode == "Graph RAG Dossier":
+    st.subheader("📁 AI-Augmented Intelligence Dossier")
+    st.markdown("Analyze a specific subject using **Graph RAG (Retrieval Augmented Generation)**.")
+    st.info("The AI reads the 'Intercepted Logs' (Text) + 'Network Topology' (Math) to assess risk.")
+    
+    col1, col2 = st.columns([1, 2])
+    
+    with col1:
+        target_id = st.number_input("Enter Subject ID:", min_value=0, max_value=len(df_nodes)-1, value=0)
+        
+        try:
+            person = df_nodes[df_nodes['id'] == target_id].iloc[0]
+            st.markdown(f"**Subject:** {person['name']}")
+            st.markdown(f"**Role:** {person['role']}")
+            st.markdown(f"**Dept:** {person['department']}")
+            
+            if person['risk_label'] == 1:
+                st.error("⚠️ FLAGGED IN DATABASE")
+            else:
+                st.success("✅ CLEAN RECORD")
+                
+        except:
+            st.error("ID not found.")
+
+    with col2:
+        if st.button("Generate AI Assessment"):
+            with st.spinner("Decrypting logs & analyzing topology..."):
+                briefing = build_intelligence_briefing(target_id, df_nodes, df_features, df_edges)
+                ai_response = simulate_llm_response(briefing)
+                
+                st.markdown("### 📝 AI Generated Intelligence Report")
+                st.markdown(ai_response)
+                
+                with st.expander("📂 View Classified Source Data (Raw Context)"):
+                    st.code(briefing)
+
+# --- MODULE 4: PATHFINDER ---
 elif view_mode == "Pathfinder":
     st.subheader("🔍 Connection Tracer")
-    st.write("Find the shortest route between two suspects.")
+    st.write("Find the shortest route between two subjects.")
     
-    col1, col2 = st.columns(2)
-    # Safely get max ID
-    max_id = len(df_nodes)-1
-    
-    source_id = col1.number_input("Suspect A (ID)", min_value=0, max_value=max_id, value=0)
-    target_id = col2.number_input("Suspect B (ID)", min_value=0, max_value=max_id, value=min(1000, max_id))
+    c1, c2 = st.columns(2)
+    start_id = c1.number_input("Source ID", min_value=0, max_value=len(df_nodes)-1, value=0)
+    end_id = c2.number_input("Target ID", min_value=0, max_value=len(df_nodes)-1, value=10)
     
     if st.button("Trace Connection"):
         try:
-            path = nx.shortest_path(G, source=source_id, target=target_id)
-            st.success(f"Connection Found! Distance: {len(path)-1} hops")
-            st.write(f"**Path:** {' ➡️ '.join(map(str, path))}")
+            path = nx.shortest_path(G, source=start_id, target=end_id)
+            st.success(f"Path Found: {len(path)-1} Hops")
             
-            # Show details
-            path_details = df_nodes[df_nodes['id'].isin(path)]
-            st.dataframe(path_details)
+            path_str = ""
+            for node in path:
+                role = df_nodes[df_nodes['id'] == node]['role'].values[0]
+                path_str += f"**{node}** ({role}) ➡️ "
+            st.markdown(path_str[:-3])
+            
+            path_df = df_nodes[df_nodes['id'].isin(path)]
+            st.dataframe(path_df[['id', 'name', 'role', 'department']])
             
         except nx.NetworkXNoPath:
             st.error("No connection exists between these subjects.")
-        except nx.NodeNotFound:
-            st.error("One of the IDs does not exist in the graph.")
+        except Exception as e:
+            st.error(f"Error tracing path: {e}")
+
+# --- FOOTER ---
+st.sidebar.markdown("---")
+st.sidebar.caption("ShadowLink AI v2.0 | High-Fidelity Insider Threat Simulation")

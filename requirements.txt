@@ -1,10 +1,9 @@
 streamlit
 pandas
+numpy
 networkx
 scikit-learn
-matplotlib
 pyvis
-joblib
+openai
 faker
-numpy
-seaborn
+joblib

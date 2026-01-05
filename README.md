@@ -1,71 +1,83 @@
-# Intelligence Network Analysis System
-### Detecting Covert Criminal Cells using Graph Machine Learning
+# 🕵️‍♂️ ShadowLink AI
+### Advanced Insider Threat Detection & Graph RAG Analysis
 
 ![Python](https://img.shields.io/badge/Python-3.9-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-App-ff4b4b)
-![ML](https://img.shields.io/badge/Machine%20Learning-Random%20Forest%20%2F%20Isolation%20Forest-green)
+![Graph Theory](https://img.shields.io/badge/Graph%20Theory-NetworkX-purple)
+![ML](https://img.shields.io/badge/Unsupervised-Isolation%20Forest-green)
 ![Status](https://img.shields.io/badge/Status-Deployed-success)
 
-## Project Overview
-This project is an advanced **Counter-Terrorism & Intelligence Analysis Tool**. It uses **Graph Theory** and **Machine Learning** to identify hidden covert cells within unstructured communication networks.
+## 📌 Project Overview
+**ShadowLink AI** is a next-generation Counter-Intelligence platform designed to detect **Insider Threats** and **Covert Cells** hidden within legitimate corporate networks. 
 
-Unlike traditional data analysis which looks at individual behavior, this system analyzes **relationships (topology)** to detect specific structural anomalies associated with clandestine operations, such as "Star Topologies" (Hub-and-Spoke command structures) and low-clustering "Bridge" nodes.
+Simulating a high-security logistics firm (**"Project Gotham"**) containing **1,500 entities**, this system combines **Graph Topology Mathematics** with **Automated Forensics** to identify "The Needle in the Haystack"—covert smuggling rings hiding inside standard departmental traffic.
 
+Unlike traditional tools that look at rows of data, ShadowLink analyzes the **structure of relationships** to find anomalies like "Star Topologies" (Command & Control) and "Bridge Nodes" (Cut-outs).
 
-## Key Features
-*   **🕸️ Interactive Graph Visualization:** A physics-based network map (using PyVis) allowing analysts to drag, zoom, and inspect node connections.
-*   **🧠 Dual-Mode AI Engine:**
-    *   **Supervised Learning (Random Forest):** Detects known threat patterns based on training data (Recall: 95%).
-    *   **Unsupervised Learning (Isolation Forest):** Detects "Zero-Day" anomalies and outliers without prior labeling.
-*   **📍 Pathfinding Algorithms:** Built-in "Trace" tool to find the shortest path between a suspect and a target.
-*   **📊 Automatic Feature Engineering:** Calculates complex metrics like *Betweenness Centrality*, *PageRank*, and *Clustering Coefficients* on the fly.
+## 🚀 Key Features
 
+### 1. 📂 Graph RAG Dossier (Retrieval Augmented Generation)
+*   **Contextual Intelligence:** The system generates a "Classified Briefing" by retrieving a suspect's mathematical metrics (Centrality, Clustering) and combining them with their intercepted communication logs.
+*   **Hybrid AI Engine:**
+    *   **Default Mode (Heuristic):** Uses a deterministic logic engine to scan logs for trigger phrases (*"off-book"*, *"crypto"*) and combines them with topology to issue a threat verdict.
+    *   **Production Mode (GPT-4):** Architecture supports live integration with OpenAI's GPT-4 API for dynamic, non-deterministic reasoning (configured via secrets).
+
+### 2. 🌍 Interactive Geospatial Map
+*   **Physics Engine:** A force-directed graph visualization (PyVis) allowing analysts to drag nodes, zoom into clusters, and visually inspect connections.
+*   **Visual Forensics:** Automatically colors nodes by Department (HR, IT, Shipping) and highlights Threats in Red.
+
+### 3. 🚨 Unsupervised Anomaly Detection
+*   **Zero-Day Discovery:** Uses **Isolation Forest** algorithms to scan the network for statistical outliers without needing prior training labels.
+*   **Behavioral Scoring:** Flags entities that mathematically deviate from the corporate norm (e.g., a Shipping Manager with excessive influence scores).
 
 ## 🛠️ Tech Stack
-*   **Language:** Python
+*   **Core Logic:** Python 3.9
 *   **Graph Processing:** NetworkX
-*   **Machine Learning:** Scikit-learn (Random Forest, Isolation Forest)
-*   **Visualization:** PyVis, Matplotlib, Seaborn
-*   **Web Framework:** Streamlit
+*   **Machine Learning:** Scikit-learn (Isolation Forest), Pandas
+*   **NLP Logic:** Hybrid (Heuristic / OpenAI API)
+*   **Visualization:** PyVis, Streamlit Components
+*   **Frontend:** Streamlit
 
 ## 📂 Project Structure
+```text
+├── app.py                  # Main ShadowLink Dashboard
+├── graph_rag.py            # AI Engine (Briefing & Analysis Logic)
+├── realistic_data_gen.py   # "Project Gotham" Generator (1,500 Nodes)
+├── feature_extraction.py   # Math Engine (Centrality, PageRank, Clustering)
+├── requirements.txt        # Dependencies
+├── nodes.csv               # Generated Intelligence Data (Identities & Logs)
+├── edges.csv               # Generated Communication Logs
+└── README.md               # Project Documentation
 
-├── app.py # Main Dashboard Application
-├── data_generator.py # Script to create synthetic intelligence data
-├── feature_extraction.py # Calculates Graph Metrics (Math Engine)
-├── train_model.py # Trains the ML Classifiers
-├── requirements.txt # Dependencies
-├── nodes.csv # Node Data (People)
-├── edges.csv # Edge Data (Calls/Connections)
-└── covert_network_model.pkl # Pre-trained AI Model
-
-## The Intelligence Logic
+📊 The Intelligence Logic
 The system relies on three core behavioral indicators to flag suspects:
-1.  **The Secrecy Index (Clustering Coefficient):** Normal social circles form triangles (friends of friends know each other). Covert operatives rarely introduce their contacts to one another to minimize exposure.
-2.  **The Bridge Score (Betweenness Centrality):** Identifying "Handlers" who act as the sole connection between a hidden cell and the outside world.
-3.  **Homophily Analysis:** Detecting disassortative mixing (High-degree leaders connecting exclusively to low-degree operatives).
+The Secrecy Index (Clustering Coefficient):
+Normal: High clustering (Friends of friends know each other).
+Threat: Low clustering (Operatives communicate with a Handler but are isolated from each other to protect the cell).
+The Bridge Score (Betweenness Centrality):
+Identifies "Gatekeepers" who connect two otherwise disconnected departments (e.g., a VP secretly coordinating with the loading dock).
+Content Forensics:
+Scans intercepted logs for "Trigger Keywords" associated with money laundering (Crypto) or unauthorized logistics (Off-book shipments).
 
-## How to Run Locally
+💻 How to Run Locally
+1.Clone the Repository
+git clone https://github.com/your-username/shadowlink-ai.git
+cd shadowlink-ai
 
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/your-username/intelligence-network-analysis.git
-    cd intelligence-network-analysis
-    ```
+2.Install Dependencies
+pip install -r requirements.txt
 
-2.  **Install Dependencies**
-    ```bash
-    pip install -r requirements.txt
-    ```
+3.Generate Fresh Data (Optional)
+python realistic_data_gen.py
+python feature_extraction.py
 
-3.  **Run the App**
-    ```bash
-    streamlit run app.py
-    ```
+4.Run the Dashboard
+streamlit run app.py
 
-## Future Scope
-*   Integration with NLP to analyze the *content* of messages, not just the connections.
-*   Temporal Analysis to track how the network evolves over time (Dynamic Graphs).
-*   Deployment on secure on-premise servers for real-world agency use.
+📈 Future Scope
+Real-Time Ingestion: Connecting to live Slack/Email APIs for enterprise deployment.
+Temporal Analysis: Adding a "Time Slider" to watch the criminal network evolve over weeks.
+Blockchain Tracking: Integrating crypto-wallet tracking to correlate financial flows with communication graphs.
 
 
+Created by Vedika as a project in Applied Graph Machine Learning & Counter-Intelligence.

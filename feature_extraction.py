@@ -2,12 +2,12 @@ import pandas as pd
 import networkx as nx
 import os
 
-# This sets the path to the current folder, wherever the script is running
+# --- CONFIGURATION ---
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 def load_graph():
     """
-    Loads the graph from the CSV files we created earlier.
+    Loads the graph from the CSV files.
     """
     nodes_path = os.path.join(BASE_PATH, 'nodes.csv')
     edges_path = os.path.join(BASE_PATH, 'edges.csv')
@@ -16,11 +16,17 @@ def load_graph():
     df_edges = pd.read_csv(edges_path)
     
     G = nx.Graph()
-    # Add nodes with basic attributes
+    
+    # Add nodes with attributes (Updated for Project Gotham Schema)
     for _, row in df_nodes.iterrows():
+        # specific handling if columns are missing
+        dept = row['department'] if 'department' in row else 'Unknown'
+        role = row['role'] if 'role' in row else 'Unknown'
+        
         G.add_node(row['id'], 
                    risk_label=row['risk_label'], 
-                   country=row['country'])
+                   department=dept,
+                   role=role)
         
     # Add edges
     for _, row in df_edges.iterrows():
@@ -40,6 +46,7 @@ def calculate_graph_metrics(G, df_nodes):
     
     # 2. Betweenness Centrality (Bridge/Gatekeeper Score)
     print("   - Calculating Betweenness Centrality (this involves pathfinding)...")
+    # k=None means exact calculation. For 1500 nodes, this might take 10-20 seconds.
     betweenness_centrality = nx.betweenness_centrality(G)
     
     # 3. Closeness Centrality (Speed of information flow)
@@ -48,8 +55,11 @@ def calculate_graph_metrics(G, df_nodes):
     
     # 4. Eigenvector Centrality (Influence of neighbors)
     print("   - Calculating Eigenvector Centrality...")
-    # max_iter increased because sparse graphs sometimes take longer to converge
-    eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
+    try:
+        eigenvector_centrality = nx.eigenvector_centrality(G, max_iter=1000)
+    except:
+        # Fallback if graph is not connected
+        eigenvector_centrality = {n: 0 for n in G.nodes()}
     
     # 5. Clustering Coefficient (The "Secrecy" Score)
     print("   - Calculating Clustering Coefficient...")
@@ -68,7 +78,7 @@ def calculate_graph_metrics(G, df_nodes):
     # Reset index to get 'id' as a column
     df_features = df_features.reset_index().rename(columns={'index': 'id'})
     
-    # Merge with original node data (to keep the Risk Label and Country)
+    # Merge with original node data to keep Department/Role info
     final_df = pd.merge(df_nodes, df_features, on='id')
     
     return final_df
@@ -87,6 +97,3 @@ if __name__ == "__main__":
     print("-" * 30)
     print(f"✅ Feature Engineering Complete!")
     print(f"📂 File saved to: {output_path}")
-    print("-" * 30)
-    print("Preview of the data:")
-    print(df_final[['name', 'risk_label', 'degree_centrality', 'clustering']].head(10))
