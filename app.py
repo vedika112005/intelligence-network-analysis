@@ -3,9 +3,14 @@ import pandas as pd
 import networkx as nx
 import joblib
 import os
+import sqlite3
 import streamlit.components.v1 as components
 from pyvis.network import Network
 from sklearn.ensemble import IsolationForest
+
+# --- CONFIGURATION ---
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+st.set_page_config(page_title="ShadowLink AI: Threat Hunter", layout="wide", page_icon="🕵️‍♂️")
 
 # --- IMPORT GRAPH RAG MODULE ---
 try:
@@ -14,30 +19,44 @@ except ImportError:
     st.error("⚠️ 'graph_rag.py' not found. Please make sure the file is in the same directory.")
     st.stop()
 
-# --- CONFIGURATION ---
-BASE_PATH = os.path.dirname(os.path.abspath(__file__))
-st.set_page_config(page_title="ShadowLink AI: Threat Hunter", layout="wide", page_icon="🕵️‍♂️")
-
-# --- LOAD RESOURCES ---
+# --- LOAD RESOURCES (HYBRID SQL/CSV) ---
 @st.cache_data
 def load_data():
+    db_path = os.path.join(BASE_PATH, 'shadowlink.db')
     nodes_path = os.path.join(BASE_PATH, 'nodes.csv')
-    edges_path = os.path.join(BASE_PATH, 'edges.csv')
-    features_path = os.path.join(BASE_PATH, 'extracted_features.csv')
     
-    nodes = pd.read_csv(nodes_path)
-    edges = pd.read_csv(edges_path)
-    features = pd.read_csv(features_path)
-    
-    model_path = os.path.join(BASE_PATH, 'covert_network_model.pkl')
-    if os.path.exists(model_path):
+    # OPTION A: Try loading from SQLite (Preferred)
+    if os.path.exists(db_path):
         try:
-            model = joblib.load(model_path)
-        except:
-            model = None
+            conn = sqlite3.connect(db_path)
+            nodes = pd.read_sql_query("SELECT * FROM nodes", conn)
+            edges = pd.read_sql_query("SELECT * FROM edges", conn)
+            features = pd.read_sql_query("SELECT * FROM features", conn)
+            conn.close()
+        except Exception as e:
+            st.warning(f"⚠️ SQL Load failed ({e}). Falling back to CSV.")
+            return load_csv_data()
+            
+    # OPTION B: Fallback to CSV (If DB missing or failed)
+    elif os.path.exists(nodes_path):
+        return load_csv_data()
     else:
-        model = None
+        st.error("❌ No Data Found! Please upload 'shadowlink.db' OR the CSV files.")
+        st.stop()
         
+    # Load Model (Optional)
+    model_path = os.path.join(BASE_PATH, 'covert_network_model.pkl')
+    model = joblib.load(model_path) if os.path.exists(model_path) else None
+        
+    return nodes, edges, features, model
+
+def load_csv_data():
+    """Helper to load CSVs if SQL fails"""
+    nodes = pd.read_csv(os.path.join(BASE_PATH, 'nodes.csv'))
+    edges = pd.read_csv(os.path.join(BASE_PATH, 'edges.csv'))
+    features = pd.read_csv(os.path.join(BASE_PATH, 'extracted_features.csv'))
+    model_path = os.path.join(BASE_PATH, 'covert_network_model.pkl')
+    model = joblib.load(model_path) if os.path.exists(model_path) else None
     return nodes, edges, features, model
 
 def build_graph(nodes, edges):
@@ -51,7 +70,7 @@ def build_graph(nodes, edges):
         # Tooltip title
         title_html = f"ID: {row['id']}\nName: {row['name']}\nRole: {role}\nDept: {dept}"
         
-        # FIX: Force Convert EVERYTHING to standard Python types
+        # FIX: Force Convert EVERYTHING to standard Python types for PyVis
         node_id = int(row['id'])
         risk_val = int(row['risk_label']) if 'risk_label' in row else 0
         
@@ -62,7 +81,7 @@ def build_graph(nodes, edges):
                    risk_label=risk_val)
     
     for _, row in edges.iterrows():
-        # FIX: Force Convert EVERYTHING to standard Python types
+        # FIX: Force Convert Edge data to standard Python types
         source_id = int(row['source'])
         target_id = int(row['target'])
         weight_val = int(row['weight'])
@@ -142,7 +161,6 @@ except Exception as e:
 
 # --- MODULE 1: DASHBOARD OVERVIEW ---
 if view_mode == "Dashboard Overview":
-    # Top Metrics
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Employees", len(df_nodes))
     col2.metric("Confirmed Threats", len(df_nodes[df_nodes['risk_label']==1]))
@@ -154,7 +172,6 @@ if view_mode == "Dashboard Overview":
 
     st.divider()
 
-    # ANOMALY DETECTION SECTION
     st.subheader("🚨 Unsupervised Anomaly Detection")
     st.write("Using **Isolation Forest** to detect statistical outliers in network topology.")
     
@@ -177,11 +194,15 @@ if view_mode == "Dashboard Overview":
         
         st.warning(f"Scan Complete. Top {len(top_threats)} Anomalies Detected.")
         
-        # Show Results with Department Info
-        st.dataframe(
-            top_threats[['id', 'name', 'role', 'department', 'Anomaly_Score']].style.background_gradient(cmap='Reds'),
-            use_container_width=True
-        )
+        # Show Results
+        try:
+            st.dataframe(
+                top_threats[['id', 'name', 'role', 'department', 'Anomaly_Score']].style.background_gradient(cmap='Reds'),
+                use_container_width=True
+            )
+        except ImportError:
+            # Fallback if matplotlib is missing on server
+            st.dataframe(top_threats[['id', 'name', 'role', 'department', 'Anomaly_Score']], use_container_width=True)
 
 # --- MODULE 2: INTERACTIVE MAP ---
 elif view_mode == "Interactive Map":
